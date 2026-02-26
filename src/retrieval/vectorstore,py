@@ -1,0 +1,36 @@
+import faiss
+import numpy as np
+import pickle
+from pathlib import Path
+
+def build_index(embeddings) -> faiss.Index :
+    """
+    Creates a FAISS index and compares the vectors with L2 (euclidean) distances
+    """
+    dimension = len(embeddings[0])
+    index = faiss.IndexFlatL2(dimension)
+    index.add(np.array(embeddings).astype("float32"))
+    return index
+
+def save_index(index : faiss.Index, chunks : list[dict], path : str | Path) :
+    """
+    Saves FAISS index and chunks(metadata) in pickle
+    """
+    path = Path(path)
+    path.mkdir(parents=True, exist_ok=True)
+    faiss.write_index(index, str(path  / "index.faiss"))
+
+    with open(path / "chunks.pkl", "wb") as f :
+        pickle.dump(chunks, f)
+
+def load_index(path : str | Path) -> tuple[faiss.Index, list[dict]] :
+    """
+    Loads index and chunks back to avoid re-embedding
+    """
+    path = Path(path)
+    index = faiss.read_index(str(path / "index.faiss"))
+
+    with open(path / "chunks.pkl", 'rb') as f:
+        chunks = pickle.load(f)
+
+    return index, chunks
