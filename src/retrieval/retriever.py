@@ -1,36 +1,57 @@
-from langchain_community.vectorstores import FAISS
+from langchain_community.vectorstores import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 from pathlib import Path
 
-def build_faiss_retriever( chunks : list[dict], top_k : int = 5) -> HuggingFaceEmbeddings :
-    """
-    Builds a retriever using the provided FAISS index and chunks(metadata)
-    """
-    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+CHROMA_PATH = "data/chroma_db"
 
-    # Separate texts and metadatas
+def get_embedder():
+    return HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
+
+def build_chroma_retriever(chunks : list[dict], top_k : int = 5):
+    """
+    Builds a Chroma retriever from the given chunks.
+    """
+
+    embedder = get_embedder()
+    
     texts = [chunk["text"] for chunk in chunks]
     metadatas = [chunk["metadata"] for chunk in chunks]
 
-    # Build FAISS vectorstore directly from texts
-    vectorstore = FAISS.from_texts(texts=texts, embedding=embeddings, metadatas=metadatas)
+    vectorstores = Chroma.from_texts(
+        texts= texts,
+        embedding= embedder,
+        metadatas= metadatas,
+        persist_directory= CHROMA_PATH
+    )
 
-    # Return a LangChain retriever
-    retriever = vectorstore.as_retriever(search_kwargs={"k": top_k})
+    retriever = vectorstores.as_retriever(search_kwargs={"k" : top_k})
+    return retriever, vectorstores
 
-    return retriever, vectorstore
+def load_chroma_retriever(top_k : int = 5):
+    """
+    Loads a Chroma retriever from the persisted directory.
+    """
 
-def save_faiss_retriever(vectorstore, path : str | Path) :
-    """
-    Saves the FAISS retriever to disk
-    """
-    vectorstore.save_local(path)
+    embedder = get_embedder()
 
-def load_faiss_retriever(path : str | Path, top_k : int = 5) -> HuggingFaceEmbeddings :
+    vectorstore = Chroma(
+        persist_directory= CHROMA_PATH,
+        embedding_function= embedder
+    )
+
+    retriever = vectorstore.as_retriever(search_kwargs={"k" : top_k})
+    return retriever,vectorstore
+
+def add_chroma_retriever(chunks : list[dict], vectorstore : Chroma):
     """
-    Loads the FAISS retriever from disk
+    Adds new chunks to the existing Chroma retriever.
     """
-    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-    vectorstore = FAISS.load_local(path, embeddings, allow_dangerous_deserialization=True)
-    retriever = vectorstore.as_retriever(search_kwargs={"k": top_k})
-    return retriever, vectorstore
+
+    texts = [chunk["text"] for chunk in chunks]
+    metadatas = [chunk["metadata"] for chunk in chunks]
+
+    vectorstore.add_texts(
+        texts= texts,
+        metadatas= metadatas
+    )
