@@ -11,6 +11,7 @@ venv/
 # Data & Indexes
 data/faiss_index/
 data/uploads/
+data/chroma_db/
 
 # IDE
 .vscode/

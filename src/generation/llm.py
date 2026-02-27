@@ -1,4 +1,5 @@
 from huggingface_hub import InferenceClient
+from huggingface_hub.errors import HfHubHTTPError
 from src.generation.prompts import SYSTEM_PROMPT, get_messages
 
 def load_llm(token: str) -> InferenceClient:

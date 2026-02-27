@@ -6,7 +6,7 @@ import streamlit as st
 from pathlib import Path
 from src.ingestion.parser import parse_file
 from src.ingestion.chunker import chunk
-from src.retrieval.retriever import build_chroma_retriever, add_chroma_retriever, load_chroma_retriever
+from src.retrieval.retriever import build_chroma_retriever, add_chroma_retriever, load_chroma_retriever,  rerank
 from src.generation.llm import load_llm, generate_answer
 from dotenv import load_dotenv
 import tempfile
@@ -48,8 +48,6 @@ with st.sidebar :
 
                 st.write(f"Pages found: {len(pages)}")
                 st.write(f"Chunks found: {len(chunks)}")
-                if len(pages) > 0:
-                    st.write(f"First page preview: {pages[0]['text'][:200]}")
 
                 retriever, vectorstore = build_chroma_retriever(chunks)
 
@@ -84,7 +82,8 @@ if question :
             try :
                 client = load_llm(HF_TOKEN)
                 retrived_docs = st.session_state.retriever.invoke(question)
-                result = generate_answer(client=client, question=question, retrieved_docs=retrived_docs)
+                reranked_docs = rerank(query=question, docs=retrived_docs, top_k=5)
+                result = generate_answer(client=client, question=question, retrieved_docs=reranked_docs)
 
                 st.subheader("Answer : ")
                 st.write(result["answer"])
